@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: distcc-server
+spec:
+  selector:
+    matchLabels:
+      app: distcc
+  template:
+    metadata:
+      labels:
+        app: distcc
+    spec:
+      containers:
+      - name: distcc
+        image: bensuperpc/distcc:ubuntu-22.04
+        args: [ "sleep", "0" ]
+        ports:
+        - containerPort: 3632
+          hostPort: 55000
+          protocol: TCP
