@@ -1,0 +1,68 @@
+# k8s/distcc-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: distcc-worker
+  namespace: default
+  labels:
+    app: distcc-worker
+spec:
+  selector:
+    matchLabels:
+      app: distcc-worker
+  template:
+    metadata:
+      labels:
+        app: distcc-worker
+    spec:
+      # Toleraciones para asegurar que se ejecute en todos los nodos
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: distcc
+        image: bensuperpc/distcc:latest
+        ports:
+        - containerPort: 55000
+          hostPort: 55000 # Expone directamente en el puerto del nodo
+          protocol: TCP
+        env:
+        - name: ALLOW
+          value: "0.0.0.0/0"
+        - name: JOBS
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: JOBS_MAX
+          value: "8" # Ajusta según los cores de tus nodos
+        resources:
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+          limits:
+            cpu: "8"
+            memory: "4Gi"
+        readinessProbe:
+          tcpSocket:
+            port: 3632
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 55000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      # Configuración para optimizar el rendimiento
+      hostNetwork: true # Usa la red del host para mejor rendimiento
+      dnsPolicy: ClusterFirstWithHostNet
